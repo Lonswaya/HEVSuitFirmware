@@ -56,6 +56,7 @@ void playAudio(int channel, int buttonId)
 	printf("Song Command: %s\n", songCommand.c_str());
 
 	int pid = system(songCommand.c_str());
+	printf("Done playing\n");
 
 	// Do something with the song name
 
