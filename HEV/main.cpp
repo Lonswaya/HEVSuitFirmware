@@ -2,7 +2,9 @@
 #include <iostream>
 #include <cstdio>
 #include <string>
+#include <string.h>
 #include <vector>
+#include <stdio.h>
 
 // BCM gpio numbers please
 // If adding more pins, go to Properties -> Build Events -> Remote Post-Build Event command and add gpio export
@@ -16,14 +18,15 @@
 #define PLAY_4_BUTTON 15
 
 constexpr auto BUTTON_COUNT = 4;
-constexpr auto AUDIO_PATH = "~/fvox/%s.wav";
+constexpr auto AUDIO_PATH = "aplay ~/fvox/";
+constexpr auto AUDIO_EXT = ".wav";
 
 std::vector<std::string> audioSamples
 {
-	"audio1",
-	"audio2",
-	"audio3",
-	"audio4",
+	"safe_day",
+	"blip",
+	"boop",
+	"buzz",
 	"audio5",
 	"audio6",
 	"audio7",
@@ -45,10 +48,17 @@ void playAudio(int channel, int buttonId)
 {
 	// Button count is 4
 	int songIndex = (channel * (BUTTON_COUNT - 1)) + buttonId;
-	char songNameBuff[128];
+	
 	std::string selectedSong = audioSamples[songIndex];
-	std::sprintf(songNameBuff, AUDIO_PATH, selectedSong);
-	printf("SongName: %s\n", songNameBuff);
+	std::string path = AUDIO_PATH;
+	std::string ext = AUDIO_EXT;
+	std::string songCommand = path + selectedSong + ext;
+	printf("Song Command: %s\n", songCommand.c_str());
+
+	int pid = system(songCommand.c_str());
+
+	// Do something with the song name
+
 }
 
 int main(void)
@@ -71,7 +81,7 @@ int main(void)
 
 	while (true)
 	{
-		delay(100);
+		delay(10);
 
 		int channelToggle = digitalRead(CHANNEL_TOGGLE_BUTTON);
 		buttonStates[0] = digitalRead(PLAY_1_BUTTON);
