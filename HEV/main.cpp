@@ -2,11 +2,11 @@
 #include <cstdio>
 
 
-// LED Pin - wiringPi pin 0 is BCM_GPIO 17.
-// we have to use BCM numbering when initializing with wiringPiSetupSys
-// when choosing a different pin number please use the BCM numbering, also
-// update the Property Pages - Build Events - Remote Post-Build Event command 
-// which uses gpio export for setup for wiringPiSetupSys
+// BCM gpio numbers please
+// If adding more pins, go to Properties -> Build Events -> Remote Post-Build Event command and add gpio export
+// so we dont have to run the program with sudo every time
+
+
 #define	CHANNEL_TOGGLE_LED	2
 #define PLAY_1_LED 3
 #define PLAY_2_LED 4
@@ -21,9 +21,7 @@ int main(void)
 
 
 	pinMode(CHANNEL_TOGGLE_LED, INPUT);
-	pinMode(CHANNEL_TOGGLE_LED, PUD_DOWN);
 	pinMode(PLAY_1_LED, INPUT);
-	pinMode(PLAY_1_LED, PUD_UP);
 	pinMode(PLAY_2_LED, INPUT);
 	pinMode(PLAY_3_LED, INPUT);
 	pinMode(PLAY_4_LED, INPUT);
