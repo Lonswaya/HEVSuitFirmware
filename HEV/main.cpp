@@ -1,10 +1,13 @@
 #include <wiringPi.h>
 #include <iostream>
+#include <fstream>
 #include <cstdio>
 #include <string>
 #include <string.h>
 #include <vector>
 #include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
 
 // BCM gpio numbers please
 // If adding more pins, go to Properties -> Build Events -> Remote Post-Build Event command and add gpio export
@@ -42,7 +45,26 @@ std::vector<std::string> audioSamples
 };
 
 int channel = 0;
-bool playing = false;
+int playingPID = -1;
+
+void execCommand(const char* command)
+{
+	if (playingPID != -1)
+	{
+		// This can kill any other process, but killing a fork won't work because that is just another fork in itself that doesnt forward kills
+		int killResult = kill(playingPID, 1);
+	}
+	int pid = fork();
+	if (pid == 0)
+	{
+		system(command);
+		exit(EXIT_SUCCESS);
+	}
+	if (pid > 0)
+	{
+		playingPID = pid;
+	}
+}
 
 void playAudio(int channel, int buttonId)
 {
@@ -55,15 +77,34 @@ void playAudio(int channel, int buttonId)
 	std::string songCommand = path + selectedSong + ext;
 	printf("Song Command: %s\n", songCommand.c_str());
 
-	int pid = system(songCommand.c_str());
+	execCommand(songCommand.c_str());
 	printf("Done playing\n");
 
 	// Do something with the song name
 
 }
 
+#define UNIQUENESS_PID "/home/pi/.hev_pid"
 int main(void)
 {
+	/* Ensure program uniqueness */
+	std::ifstream pidInFile(UNIQUENESS_PID);
+	if (pidInFile.is_open())
+	{
+		std::string line;
+		getline(pidInFile, line);
+		playingPID = std::stoi(line.c_str());
+		pidInFile.close();
+	}
+
+	/* Add our own PID */
+	std::ofstream pidOutFile(UNIQUENESS_PID);
+	if (pidOutFile.is_open())
+	{
+		pidOutFile << getpid();
+		pidOutFile.close();
+	}
+
 	int CHANNEL_MAX = (audioSamples.size() / BUTTON_COUNT);
 
 	wiringPiSetupSys();
