@@ -88,17 +88,23 @@ void playAudio(int channel, int buttonId)
 int main(void)
 {
 	/* Ensure program uniqueness */
-	std::ifstream pidInFile(UNIQUENESS_PID);
+	std::fstream pidInFile(UNIQUENESS_PID);
 	if (pidInFile.is_open())
 	{
 		std::string line;
 		getline(pidInFile, line);
 		playingPID = std::stoi(line.c_str());
+
+
+
 		pidInFile.close();
 	}
 
+	remove(UNIQUENESS_PID);
+
 	/* Add our own PID */
-	std::ofstream pidOutFile(UNIQUENESS_PID);
+	// todo can't write to file			
+	std::ofstream pidOutFile(UNIQUENESS_PID, std::ofstream::trunc);
 	if (pidOutFile.is_open())
 	{
 		pidOutFile << getpid();
