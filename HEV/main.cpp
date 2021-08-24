@@ -20,7 +20,7 @@
 #define PLAY_3_BUTTON 14
 #define PLAY_4_BUTTON 15
 
-constexpr auto BUTTON_COUNT = 4;
+constexpr auto CYCLING_BUTTON_COUNT = 4;
 constexpr auto AUDIO_PATH = "aplay ~/fvox/";
 constexpr auto AUDIO_EXT = ".wav";
 
@@ -68,8 +68,7 @@ void execCommand(const char* command)
 
 void playAudio(int channel, int buttonId)
 {
-	// Button count is 4
-	int songIndex = (channel * (BUTTON_COUNT - 1)) + buttonId;
+	int songIndex = (channel * (CYCLING_BUTTON_COUNT)) + buttonId;
 	
 	std::string selectedSong = audioSamples[songIndex];
 	std::string path = AUDIO_PATH;
@@ -81,7 +80,6 @@ void playAudio(int channel, int buttonId)
 	printf("Done playing\n");
 
 	// Do something with the song name
-
 }
 
 #define UNIQUENESS_PID "/home/pi/.hev_pid"
@@ -107,11 +105,11 @@ int main(void)
 	std::ofstream pidOutFile(UNIQUENESS_PID, std::ofstream::trunc);
 	if (pidOutFile.is_open())
 	{
-		pidOutFile << getpid();
+		pidOutFile << getpid() << "\n";
 		pidOutFile.close();
 	}
 
-	int CHANNEL_MAX = (audioSamples.size() / BUTTON_COUNT);
+	int CHANNEL_MAX = (audioSamples.size() / CYCLING_BUTTON_COUNT);
 
 	wiringPiSetupSys();
 
@@ -124,8 +122,8 @@ int main(void)
 	// Play init audio TODO
 
 	int lastChannelToggle;
-	int buttonStates[BUTTON_COUNT];
-	int lastButtonStates[BUTTON_COUNT];
+	int buttonStates[CYCLING_BUTTON_COUNT];
+	int lastButtonStates[CYCLING_BUTTON_COUNT];
 
 	while (true)
 	{
@@ -145,7 +143,7 @@ int main(void)
 		}
 
 		lastChannelToggle = channelToggle;
-		for (int i = 0; i < BUTTON_COUNT; i++)
+		for (int i = 0; i < CYCLING_BUTTON_COUNT; i++)
 		{
 			int currentState = buttonStates[i];
 			int lastButtonState = lastButtonStates[i];
