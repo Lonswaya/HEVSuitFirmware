@@ -12,6 +12,7 @@
 // BCM gpio numbers please
 // If adding more pins, go to Properties -> Build Events -> Remote Post-Build Event command and add gpio export
 // so we dont have to run the program with sudo every time
+// gpio export 2 out; gpio export 3 out; gpio export 4 out; gpio export 14 out; gpio export 15 out;
 
 
 #define	CHANNEL_TOGGLE_BUTTON	2
@@ -21,7 +22,7 @@
 #define PLAY_4_BUTTON 15
 
 constexpr auto CYCLING_BUTTON_COUNT = 4;
-constexpr auto AUDIO_PATH = "aplay ~/fvox/";
+constexpr auto AUDIO_PATH = "aplay /home/pi/fvox/";
 constexpr auto AUDIO_EXT = ".wav";
 
 std::vector<std::string> audioSamples
