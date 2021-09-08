@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/wait.h>
+
+using namespace std;
 
 // BCM gpio numbers please
 // If adding more pins, go to Properties -> Build Events -> Remote Post-Build Event command and add gpio export
@@ -21,40 +24,54 @@
 #define PLAY_3_BUTTON 14
 #define PLAY_4_BUTTON 15
 
+#define UNIQUENESS_PID_FILE "/home/pi/.hev_pid"
+
 constexpr auto CYCLING_BUTTON_COUNT = 4;
 constexpr auto AUDIO_PATH = "aplay /home/pi/fvox/";
 constexpr auto AUDIO_EXT = ".wav";
+constexpr auto AUDIO_POST_PID = "& echo $! > ";
 
-std::vector<std::string> audioSamples
+
+vector<vector<string>> audioSamples
 {
-	"safe_day",
-	"blip",
-	"boop",
-	"buzz",
-	"audio5",
-	"audio6",
-	"audio7",
-	"audio8",
-	"audio9",
-	"audio10",
-	"audio11",
-	"audio12",
-	"audio13",
-	"audio14",
-	"audio15",
-	"audio16",
+	{ "safe_day" },
+	{ "eleven", "twelve", "thirteen" },
+	{ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"},
+	{ "blip", },
+	{ "boop", },
+	{ "buzz", },
 };
 
 int channel = 0;
-int playingPID = -1;
 
-void execCommand(const char* command)
+int getLastPlayedPid()
 {
-	if (playingPID != -1)
+	fstream pidInFile(UNIQUENESS_PID_FILE);
+	int result = -1;
+	if (pidInFile.is_open())
+	{
+		string line;
+		getline(pidInFile, line);
+		result = stoi(line.c_str());
+
+		pidInFile.close();
+	}
+	return result;
+}
+
+void killLastAudioProcess()
+{
+	int lastPid = getLastPlayedPid();
+	if (lastPid != -1)
 	{
 		// This can kill any other process, but killing a fork won't work because that is just another fork in itself that doesnt forward kills
-		int killResult = kill(playingPID, 1);
+		int killResult = kill(lastPid, 1);
 	}
+}
+
+int execCommand(const char* command)
+{
+	// This should execute a command, and spit the pid of that command into the pid file
 	int pid = fork();
 	if (pid == 0)
 	{
@@ -63,52 +80,69 @@ void execCommand(const char* command)
 	}
 	if (pid > 0)
 	{
-		playingPID = pid;
+		// Wait for pid to be recorded
+		wait(NULL);
+		return getLastPlayedPid();
 	}
 }
 
-void playAudio(int channel, int buttonId)
+int audioSampleIndex = -1;
+int audioSampleTrackPoint = -1;
+int audioTrackSeriesPid = -1;
+
+void playNextAudioTrackSeries()
 {
-	int songIndex = (channel * (CYCLING_BUTTON_COUNT)) + buttonId;
-	
-	std::string selectedSong = audioSamples[songIndex];
-	std::string path = AUDIO_PATH;
-	std::string ext = AUDIO_EXT;
-	std::string songCommand = path + selectedSong + ext;
+	audioTrackSeriesPid = -1;
+	vector<string> sampleArray = audioSamples[audioSampleIndex];
+
+	string selectedSong = sampleArray[audioSampleTrackPoint];
+	string path = AUDIO_PATH;
+	string ext = AUDIO_EXT;
+	// example:  aplay /home/pi/fvox/hev_logon.wav & echo $! > /home/pi/.hev_pid
+	string songCommand = path + selectedSong + ext + AUDIO_POST_PID + UNIQUENESS_PID_FILE;
 	printf("Song Command: %s\n", songCommand.c_str());
 
-	execCommand(songCommand.c_str());
-	printf("Done playing\n");
+	audioTrackSeriesPid = execCommand(songCommand.c_str());
+	audioSampleTrackPoint++;
 
-	// Do something with the song name
+	if (audioSampleTrackPoint >= sampleArray.size())
+	{
+		audioTrackSeriesPid = -1;
+		audioSampleIndex = -1;
+		audioSampleTrackPoint = -1;
+		printf("Done playing\n");
+	}
 }
 
-#define UNIQUENESS_PID "/home/pi/.hev_pid"
+void initiateAudioSeriesPlay(int channel, int buttonId)
+{
+	killLastAudioProcess();
+	int songIndex = (channel * (CYCLING_BUTTON_COUNT)) + buttonId;
+	audioSampleIndex = songIndex;
+	audioSampleTrackPoint = 0;
+	playNextAudioTrackSeries();
+}
+
+bool isProcessRunning(int pid)
+{
+	// Sending a signal 0 does nothing, but still error checks
+	return kill(pid, 0) == 0;
+}
+
 int main(void)
 {
 	/* Ensure program uniqueness */
-	std::fstream pidInFile(UNIQUENESS_PID);
-	if (pidInFile.is_open())
-	{
-		std::string line;
-		getline(pidInFile, line);
-		playingPID = std::stoi(line.c_str());
+	//killLastAudioProcess();
 
+	//remove(UNIQUENESS_PID_FILE);
 
-
-		pidInFile.close();
-	}
-
-	remove(UNIQUENESS_PID);
-
-	/* Add our own PID */
-	// todo can't write to file			
-	std::ofstream pidOutFile(UNIQUENESS_PID, std::ofstream::trunc);
+	/* Add our own PID 
+	ofstream pidOutFile(UNIQUENESS_PID_FILE, ofstream::trunc);
 	if (pidOutFile.is_open())
 	{
 		pidOutFile << getpid() << "\n";
 		pidOutFile.close();
-	}
+	}*/
 
 	int CHANNEL_MAX = (audioSamples.size() / CYCLING_BUTTON_COUNT);
 
@@ -126,6 +160,8 @@ int main(void)
 	int buttonStates[CYCLING_BUTTON_COUNT];
 	int lastButtonStates[CYCLING_BUTTON_COUNT];
 
+	int count = 0;
+
 	while (true)
 	{
 		delay(10);
@@ -135,7 +171,12 @@ int main(void)
 		buttonStates[1] = digitalRead(PLAY_2_BUTTON);
 		buttonStates[2] = digitalRead(PLAY_3_BUTTON);
 		buttonStates[3] = digitalRead(PLAY_4_BUTTON);
-		//printf("Inputs cycle %d: %d %d %d %d %d\n", ++count, channelToggle, play1, play2, play3, play4);
+		//printf("Inputs cycle %d: %d %d %d %d %d\n", ++count, channelToggle, buttonStates[0], buttonStates[1], buttonStates[2], buttonStates[3]);
+
+		if (audioTrackSeriesPid != -1 && !isProcessRunning(audioTrackSeriesPid))
+		{
+			playNextAudioTrackSeries();
+		}
 		
 		if (channelToggle && channelToggle != lastChannelToggle)
 		{
@@ -150,7 +191,7 @@ int main(void)
 			int lastButtonState = lastButtonStates[i];
 			if (currentState && currentState != lastButtonState)
 			{
-				playAudio(channel, i);
+				initiateAudioSeriesPlay(channel, i);
 			}
 			lastButtonStates[i] = currentState;
 		}
