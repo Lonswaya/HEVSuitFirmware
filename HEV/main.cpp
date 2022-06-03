@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <math.h>
 
 using namespace std;
 
@@ -37,9 +38,9 @@ vector<vector<string>> audioSamples
 	{ "safe_day" },
 	{ "eleven", "twelve", "thirteen" },
 	{ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"},
+	{ "buzz", },
 	{ "blip", },
 	{ "boop", },
-	{ "buzz", },
 };
 
 int channel = 0;
@@ -114,6 +115,14 @@ void playNextAudioTrackSeries()
 	}
 }
 
+void initiateAudioSeriesPlay(int audioIndex)
+{
+	killLastAudioProcess();
+	audioSampleIndex = audioIndex;
+	audioSampleTrackPoint = 0;
+	playNextAudioTrackSeries();
+}
+
 void initiateAudioSeriesPlay(int channel, int buttonId)
 {
 	killLastAudioProcess();
@@ -144,7 +153,7 @@ int main(void)
 		pidOutFile.close();
 	}*/
 
-	int CHANNEL_MAX = (audioSamples.size() / CYCLING_BUTTON_COUNT);
+	int CHANNEL_MAX = ceil(audioSamples.size() / CYCLING_BUTTON_COUNT);
 
 	wiringPiSetupSys();
 
@@ -181,7 +190,8 @@ int main(void)
 		if (channelToggle && channelToggle != lastChannelToggle)
 		{
 			channel = (channel + 1) % CHANNEL_MAX;
-			printf("Channel toggle: %d\n", channel);
+			printf("Channel toggle: %d, channel max: %d\n", channel, CHANNEL_MAX);
+			initiateAudioSeriesPlay(4); // blip
 		}
 
 		lastChannelToggle = channelToggle;
