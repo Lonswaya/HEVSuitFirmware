@@ -35,12 +35,39 @@ constexpr auto AUDIO_POST_PID = "& echo $! > ";
 
 vector<vector<string>> audioSamples
 {
+	// Startup
+	{ "hev_logon"},
 	{ "safe_day" },
-	{ "eleven", "twelve", "thirteen" },
-	{ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"},
-	{ "buzz", },
 	{ "blip", },
+	{ "blip", },
+	// FX
+	{ "buzz", },
 	{ "boop", },
+	{ "bell", },
+	{ "button3", },
+
+	{ "button7", },
+	{ "fuzz", },
+	{ "gunpickup2", },
+	{ "weapon_pickup", },
+
+	// Weapon select
+	{ "wpn_hudoff", },
+	{ "wpn_hudon", },
+	{ "wpn_moveselect", },
+	{ "wpn_select", },
+
+	// warnings
+	{ "warning", "blood_loss", "health_dropping",},
+	{ "major_lacerations", "torniquette_applied",},
+	{ "near_death", "seek_medic" },
+	{ "beep", "beep", "major_fracture", "morphine_shot",},
+
+
+
+	{ "eleven", "twelve", "thirteen" },
+	{ "ten", "nine", "eight", "seven", "six", "five", "four", "three", "two", "one"},
+	
 };
 
 int channel = 0;
@@ -91,12 +118,8 @@ int audioSampleIndex = -1;
 int audioSampleTrackPoint = -1;
 int audioTrackSeriesPid = -1;
 
-void playNextAudioTrackSeries()
+void playSongByString(string selectedSong)
 {
-	audioTrackSeriesPid = -1;
-	vector<string> sampleArray = audioSamples[audioSampleIndex];
-
-	string selectedSong = sampleArray[audioSampleTrackPoint];
 	string path = AUDIO_PATH;
 	string ext = AUDIO_EXT;
 	// example:  aplay /home/pi/fvox/hev_logon.wav & echo $! > /home/pi/.hev_pid
@@ -104,6 +127,22 @@ void playNextAudioTrackSeries()
 	printf("Song Command: %s\n", songCommand.c_str());
 
 	audioTrackSeriesPid = execCommand(songCommand.c_str());
+}
+
+void playNextAudioTrackSeries()
+{
+	if (audioSampleTrackPoint < 0)
+	{
+		return;
+	}
+	audioTrackSeriesPid = -1;
+	printf("Sampling array at index: %d\n", audioSampleIndex);
+	vector<string> sampleArray = audioSamples[audioSampleIndex];
+
+	string selectedSong = sampleArray[audioSampleTrackPoint];
+
+	playSongByString(selectedSong);
+	
 	audioSampleTrackPoint++;
 
 	if (audioSampleTrackPoint >= sampleArray.size())
@@ -115,21 +154,17 @@ void playNextAudioTrackSeries()
 	}
 }
 
-void initiateAudioSeriesPlay(int audioIndex)
-{
-	killLastAudioProcess();
-	audioSampleIndex = audioIndex;
-	audioSampleTrackPoint = 0;
-	playNextAudioTrackSeries();
-}
-
 void initiateAudioSeriesPlay(int channel, int buttonId)
 {
 	killLastAudioProcess();
 	int songIndex = (channel * (CYCLING_BUTTON_COUNT)) + buttonId;
-	audioSampleIndex = songIndex;
-	audioSampleTrackPoint = 0;
-	playNextAudioTrackSeries();
+	if (songIndex < audioSamples.size())
+	{
+		printf("Playing audio at index: %d\n", songIndex);
+		audioSampleIndex = songIndex;
+		audioSampleTrackPoint = 0;
+		playNextAudioTrackSeries();
+	}
 }
 
 bool isProcessRunning(int pid)
@@ -153,7 +188,7 @@ int main(void)
 		pidOutFile.close();
 	}*/
 
-	int CHANNEL_MAX = ceil(audioSamples.size() / CYCLING_BUTTON_COUNT);
+	int CHANNEL_MAX = ceil((float)audioSamples.size() / (float)CYCLING_BUTTON_COUNT);
 
 	wiringPiSetupSys();
 
@@ -170,6 +205,9 @@ int main(void)
 	int lastButtonStates[CYCLING_BUTTON_COUNT];
 
 	int count = 0;
+
+
+	playSongByString("hev_logon"); // boot
 
 	while (true)
 	{
@@ -191,7 +229,9 @@ int main(void)
 		{
 			channel = (channel + 1) % CHANNEL_MAX;
 			printf("Channel toggle: %d, channel max: %d\n", channel, CHANNEL_MAX);
-			initiateAudioSeriesPlay(4); // blip
+
+
+			playSongByString("blip"); // blip
 		}
 
 		lastChannelToggle = channelToggle;
@@ -201,6 +241,7 @@ int main(void)
 			int lastButtonState = lastButtonStates[i];
 			if (currentState && currentState != lastButtonState)
 			{
+				printf("Playing: channel %d, index %d\n", channel, i);
 				initiateAudioSeriesPlay(channel, i);
 			}
 			lastButtonStates[i] = currentState;
